@@ -6,7 +6,7 @@ fn decrypt(input: &str) -> String {
     b(input)
 }
 
-fn a(a: Option<u16>, b: Option<u16>, c: Option<u16>, d: &d_type) -> bool {
+fn a(a: Option<i32>, b: Option<i32>, c: Option<i32>, d: &d_type) -> bool {
     match d.length {
         1 => a.is_some() && a.unwrap() == d.ch0,
         2 => a.is_some() && a.unwrap() == d.ch0 && b == d.ch1,
@@ -17,6 +17,8 @@ fn a(a: Option<u16>, b: Option<u16>, c: Option<u16>, d: &d_type) -> bool {
 
 fn b(input: &str) -> String {
     let input_utf16: Vec<u16> = input.encode_utf16().collect();
+    let input_utf16: Vec<i32> = input_utf16.iter().map(|x| *x as i32).collect();
+
     let i = *input_utf16.get(12).expect("There to be enough characters");
     let j = *input_utf16.get(13).expect("There to be enough characters");
     let k = *input_utf16.get(14).expect("There to be enough characters");
@@ -120,14 +122,13 @@ fn b(input: &str) -> String {
         m = c(&input_utf16[16..substrend]);
         n = 35;
     }
-    let g: u16 = input_utf16.len() as u16 - n;
+    let g: i32 = input_utf16.len() as i32 - n;
     let mut h = g;
     while h > 0 {
         let v = n + h - 1;
         let r = *input_utf16.get(v as usize).expect("Can this fail?");
         let u = (g - h + 1) % 10;
         if r >= o && p >= r {
-            println!("{}, {}, {}", r, m, u);
             q.push(if o > r - m - u {
                 u16_to_char(r - m - u + (p - o + 1))
             } else {
@@ -173,14 +174,14 @@ fn b(input: &str) -> String {
     q
 }
 
-fn u16_to_char(input: u16) -> char {
-    std::char::decode_utf16([input].iter().cloned())
+fn u16_to_char(input: i32) -> char {
+    std::char::decode_utf16([input as u16].iter().cloned())
         .next()
         .expect("Decoding should work") // Opens next() option
         .expect("Decoding should work") // Opens decoding result
 }
 
-fn c(a: &[u16]) -> u16 {
+fn c(a: &[i32]) -> i32 {
     let b = d(a.get(17).unwrap());
     let c = d(a.get(18).unwrap());
     let e = d(a.get(11).unwrap());
@@ -207,14 +208,14 @@ fn c(a: &[u16]) -> u16 {
     }
     f.unwrap_or(27)
 }
-fn d(char_code: &u16) -> Option<u16> {
+fn d(char_code: &i32) -> Option<i32> {
     if 48 <= *char_code && *char_code <= 57 {
         Some(char_code - 48)
     } else {
         None
     }
 }
-fn my_sum(args: &[Option<u16>]) -> Option<u16> {
+fn my_sum(args: &[Option<i32>]) -> Option<i32> {
     let mut sum = Some(0);
     for arg in args {
         if let Some(number) = arg {
@@ -227,10 +228,10 @@ fn my_sum(args: &[Option<u16>]) -> Option<u16> {
 }
 
 struct d_type {
-    length: u16,
-    ch0: u16,
-    ch1: Option<u16>,
-    ch2: Option<u16>,
+    length: i32,
+    ch0: i32,
+    ch1: Option<i32>,
+    ch2: Option<i32>,
 }
 
 #[cfg(test)]
@@ -257,8 +258,10 @@ mod tests {
     #[test]
     fn test_c() {
         let encoded: Vec<u16> = "2019-06-10 15:25:46".encode_utf16().collect();
+        let encoded: Vec<i32> = encoded.iter().map(|x| *x as i32).collect();
         assert_eq!(c(&encoded), 44);
         let encoded: Vec<u16> = "2019-06-10 15:29:12".encode_utf16().collect();
+        let encoded: Vec<i32> = encoded.iter().map(|x| *x as i32).collect();
         assert_eq!(c(&encoded), 40);
     }
 }
