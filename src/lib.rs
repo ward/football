@@ -1,4 +1,3 @@
-use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -6,13 +5,13 @@ use std::str::FromStr;
 
 pub mod decrypt;
 
-pub fn get_all_games() -> Result<Vec<Country>, Box<std::error::Error>> {
+pub fn get_all_games() -> Result<Football, Box<std::error::Error>> {
     let livescore = fetch_livescore()?;
     Ok(parse_livescore(livescore))
 }
 
 fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
-    let utc: DateTime<Utc> = Utc::now();
+    let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let yday = format!(
         "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
@@ -33,6 +32,7 @@ fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
     }
     Ok(livescore)
 }
+
 fn fetch_page(url: &str) -> Result<LiveScore, Box<std::error::Error>> {
     let client = reqwest::Client::new();
     let builder = client.get(url).header(
@@ -45,8 +45,8 @@ fn fetch_page(url: &str) -> Result<LiveScore, Box<std::error::Error>> {
     Ok(parsed)
 }
 
-fn parse_livescore(mut livescore: LiveScore) -> Vec<Country> {
-    let mut result = vec![];
+fn parse_livescore(mut livescore: LiveScore) -> Football {
+    let mut result = Football { countries: vec![] };
     if livescore.stages.is_empty() {
         return result;
     }
@@ -72,7 +72,7 @@ fn parse_livescore(mut livescore: LiveScore) -> Vec<Country> {
             };
         }
         if stage.country_name != current_country.name {
-            result.push(current_country);
+            result.countries.push(current_country);
             current_country = Country {
                 name: stage.country_name.to_owned(),
                 competitions: vec![],
@@ -95,6 +95,53 @@ fn parse_livescore(mut livescore: LiveScore) -> Vec<Country> {
 }
 
 #[derive(Debug)]
+pub struct Football {
+    countries: Vec<Country>,
+}
+impl Football {
+    // TODO This would be much nicer with on-line approximate string matching.
+    //      bitap algorithm or somesuch?
+    /// Splits string into pieces, only keeps games for which every piece is matched by either
+    /// country, competition, or teams
+    pub fn query(self, query: &str) -> Football {
+        let query: Vec<_> = query.split(|c: char| !c.is_ascii_alphabetic()).collect();
+        let mut games = Football { countries: vec![] };
+        for country in &self.countries {
+            let mut filteredcompetitions = vec![];
+            for competition in &country.competitions {
+                let filteredgames: Vec<_> = competition
+                    .games
+                    .iter()
+                    .filter(|game| {
+                        query.iter().all(|word| {
+                            country.name.contains(word)
+                                || competition.name.contains(word)
+                                || game.home_team.contains(word)
+                                || game.away_team.contains(word)
+                        })
+                    })
+                    .map(|game| game.clone())
+                    .collect();
+                if filteredgames.len() > 0 {
+                    filteredcompetitions.push(Competition {
+                        name: competition.name.to_owned(),
+                        games: filteredgames,
+                    });
+                }
+            }
+            if filteredcompetitions.len() > 0 {
+                games.countries.push(Country {
+                    name: country.name.to_owned(),
+                    competitions: filteredcompetitions,
+                });
+            }
+        }
+        games
+    }
+
+    // TODO: Time querying (now, today, tomorrow, ended, ...)
+}
+#[derive(Debug)]
 pub struct Country {
     name: String,
     competitions: Vec<Competition>,
@@ -104,7 +151,7 @@ pub struct Competition {
     name: String,
     games: Vec<Game>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Game {
     home_team: String,
     away_team: String,
@@ -112,7 +159,7 @@ pub struct Game {
     away_score: Option<u8>,
     status: GameStatus,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum GameStatus {
     Upcoming(u64), // TODO: Replace by Chrono
     Ongoing(String),
