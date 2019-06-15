@@ -6,10 +6,9 @@ use std::str::FromStr;
 
 pub mod decrypt;
 
-pub fn get_all_games() -> Result<(), Box<std::error::Error>> {
+pub fn get_all_games() -> Result<Vec<Country>, Box<std::error::Error>> {
     let livescore = fetch_livescore()?;
-    println!("{:#?}", parse_livescore(livescore));
-    Ok(())
+    Ok(parse_livescore(livescore))
 }
 
 fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
@@ -96,17 +95,17 @@ fn parse_livescore(mut livescore: LiveScore) -> Vec<Country> {
 }
 
 #[derive(Debug)]
-struct Country {
+pub struct Country {
     name: String,
     competitions: Vec<Competition>,
 }
 #[derive(Debug)]
-struct Competition {
+pub struct Competition {
     name: String,
     games: Vec<Game>,
 }
 #[derive(Debug)]
-struct Game {
+pub struct Game {
     home_team: String,
     away_team: String,
     home_score: Option<u8>,
@@ -118,7 +117,7 @@ enum GameStatus {
     Upcoming(u64), // TODO: Replace by Chrono
     Ongoing(String),
     Ended,
-    Other(String),
+    // Other(String),
 }
 impl GameStatus {
     fn set_start_time(self, start_time: u64) -> GameStatus {
@@ -136,7 +135,7 @@ impl FromStr for GameStatus {
         match s {
             // TODO Can we use start_time immediately?
             "NS" => Ok(GameStatus::Upcoming(0)),
-            "FT" => Ok(GameStatus::Ended),
+            "FT" | "AET" => Ok(GameStatus::Ended),
             // TODO: Only want this for in game time indications (Minutes + HT + ???)
             t => Ok(GameStatus::Ongoing(t.to_owned())),
             // _ => Err(ParseClubLeaderboardSortError),

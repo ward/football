@@ -1,3 +1,3 @@
 fn main() {
-    livescore::get_all_games().expect("Main error");
+    println!("{:#?}", livescore::get_all_games().expect("Main error"));
 }
