@@ -1,3 +1,3 @@
 fn main() {
-    // println!("{}", decrypt("Hello"));
+    livescore::get_all_games().expect("Main error");
 }

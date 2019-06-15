@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
@@ -5,40 +6,65 @@ use std::str::FromStr;
 
 pub mod decrypt;
 
-pub fn fetch_homepage() -> Result<(), Box<std::error::Error>> {
-    let client = reqwest::Client::new();
-    let builder = client
-        .get("http://www.livescore.com/~~/r/06/hp/soccer/0/")
-        .header(
-            reqwest::header::USER_AGENT,
-            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
-        );
-    let encrypted: String = builder.send()?.text()?;
-    let decrypted = decrypt::decrypt(&encrypted);
-    println!("{:#?}", parse_livescore(&decrypted));
+pub fn get_all_games() -> Result<(), Box<std::error::Error>> {
+    let livescore = fetch_livescore()?;
+    println!("{:#?}", parse_livescore(livescore));
     Ok(())
 }
 
-fn parse_livescore(input: &str) -> Vec<Country> {
-    let mut parsed: LiveScore = serde_json::from_str(input).unwrap();
+fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
+    let utc: DateTime<Utc> = Utc::now();
+    let oneday = chrono::Duration::days(1);
+    let yday = format!(
+        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
+        (utc - oneday).format("%Y-%m-%d").to_string()
+    );
+    let tomorrow = format!(
+        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
+        (utc + oneday).format("%Y-%m-%d").to_string()
+    );
+    let urls = vec![
+        "http://www.livescore.com/~~/r/07/hp/soccer/0/", // today
+        &yday,
+        &tomorrow,
+    ];
+    let mut livescore = LiveScore { stages: vec![] };
+    for url in urls {
+        livescore.union(fetch_page(url)?);
+    }
+    Ok(livescore)
+}
+fn fetch_page(url: &str) -> Result<LiveScore, Box<std::error::Error>> {
+    let client = reqwest::Client::new();
+    let builder = client.get(url).header(
+        reqwest::header::USER_AGENT,
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
+    );
+    let encrypted: String = builder.send()?.text()?;
+    let decrypted = decrypt::decrypt(&encrypted);
+    let parsed = serde_json::from_str(&decrypted)?;
+    Ok(parsed)
+}
+
+fn parse_livescore(mut livescore: LiveScore) -> Vec<Country> {
     let mut result = vec![];
-    if parsed.stages.is_empty() {
+    if livescore.stages.is_empty() {
         return result;
     }
-    parsed.stages.sort_by(|a, b| {
+    livescore.stages.sort_by(|a, b| {
         a.country_name
             .cmp(&b.country_name)
             .then(a.competition_name.cmp(&b.competition_name))
     });
     let mut current_competition = Competition {
-        name: parsed.stages[0].competition_name.to_owned(),
+        name: livescore.stages[0].competition_name.to_owned(),
         games: vec![],
     };
     let mut current_country = Country {
-        name: parsed.stages[0].country_name.to_owned(),
+        name: livescore.stages[0].country_name.to_owned(),
         competitions: vec![],
     };
-    for stage in parsed.stages {
+    for stage in livescore.stages {
         if stage.competition_name != current_competition.name {
             current_country.competitions.push(current_competition);
             current_competition = Competition {
@@ -138,6 +164,11 @@ struct LiveScore {
     #[serde(rename = "Stages")]
     stages: Vec<LiveScoreStage>,
 }
+impl LiveScore {
+    fn union(&mut self, mut other: LiveScore) {
+        self.stages.append(&mut other.stages);
+    }
+}
 #[derive(Serialize, Deserialize, Debug)]
 struct LiveScoreStage {
     #[serde(rename = "Cnm")]
@@ -184,11 +215,11 @@ mod tests {
     }
 
     #[test]
-    fn run_fetch() {
+    fn parse_decrypted() {
         let decrypted = read_to_string("src/decrypted.txt");
         let decrypted = decrypted.trim();
-        let parsed = parse_livescore(&decrypted);
+        let parsed: LiveScore = serde_json::from_str(&decrypted).unwrap();
         println!("{:#?}", parsed);
-        assert!(false);
+        // assert!(false);
     }
 }
