@@ -6,7 +6,7 @@ fn decrypt(input: &str) -> String {
     b(input)
 }
 
-fn a(a: Option<i32>, b: Option<i32>, c: Option<i32>, d: &d_type) -> bool {
+fn a(a: Option<i32>, b: Option<i32>, c: Option<i32>, d: &DType) -> bool {
     match d.length {
         1 => a.is_some() && a.unwrap() == d.ch0,
         2 => a.is_some() && a.unwrap() == d.ch0 && b == d.ch1,
@@ -30,19 +30,19 @@ fn b(input: &str) -> String {
     let mut q = String::new();
 
     // Just some default value to please the compiler
-    let mut d = d_type {
+    let mut d = DType {
         length: 0,
         ch0: 0,
         ch1: None,
         ch2: None,
     };
-    let mut e = d_type {
+    let mut e = DType {
         length: 0,
         ch0: 0,
         ch1: None,
         ch2: None,
     };
-    let mut f = d_type {
+    let mut f = DType {
         length: 0,
         ch0: 0,
         ch1: None,
@@ -50,19 +50,19 @@ fn b(input: &str) -> String {
     };
 
     if i == 58 && j == 32 {
-        d = d_type {
+        d = DType {
             length: 1,
             ch0: 33,
             ch1: None,
             ch2: None,
         };
-        e = d_type {
+        e = DType {
             length: 1,
             ch0: 36,
             ch1: None,
             ch2: None,
         };
-        f = d_type {
+        f = DType {
             length: 1,
             ch0: 37,
             ch1: None,
@@ -74,19 +74,19 @@ fn b(input: &str) -> String {
         m = c(&input_utf16[14..substrend]);
         n = 33;
     } else if i == 58 && j == 58 && k == 32 {
-        d = d_type {
+        d = DType {
             length: 1,
             ch0: 171,
             ch1: None,
             ch2: None,
         };
-        e = d_type {
+        e = DType {
             length: 1,
             ch0: 169,
             ch1: None,
             ch2: None,
         };
-        f = d_type {
+        f = DType {
             length: 1,
             ch0: 187,
             ch1: None,
@@ -98,19 +98,19 @@ fn b(input: &str) -> String {
         m = c(&input_utf16[15..substrend]);
         n = 34;
     } else if i == 58 && j == 58 && k == 58 && l == 32 {
-        d = d_type {
+        d = DType {
             length: 3,
             ch0: 33,
             ch1: Some(36),
             ch2: Some(34),
         };
-        e = d_type {
+        e = DType {
             length: 3,
             ch0: 35,
             ch1: Some(37),
             ch2: Some(38),
         };
-        f = d_type {
+        f = DType {
             length: 3,
             ch0: 37,
             ch1: Some(35),
@@ -227,7 +227,7 @@ fn my_sum(args: &[Option<i32>]) -> Option<i32> {
     sum
 }
 
-struct d_type {
+struct DType {
     length: i32,
     ch0: i32,
     ch1: Option<i32>,
