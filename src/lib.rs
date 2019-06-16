@@ -106,7 +106,10 @@ impl Football {
     /// Splits string into pieces, only keeps games for which every piece is matched by either
     /// country, competition, or teams
     pub fn query(self, query: &str) -> Football {
-        let query: Vec<_> = query.split(|c: char| !c.is_ascii_alphabetic()).collect();
+        let query: Vec<_> = query
+            .split(|c: char| !c.is_ascii_alphabetic())
+            .map(|word| word.to_lowercase())
+            .collect();
         let mut games = Football { countries: vec![] };
         for country in &self.countries {
             let mut filteredcompetitions = vec![];
@@ -116,10 +119,10 @@ impl Football {
                     .iter()
                     .filter(|game| {
                         query.iter().all(|word| {
-                            country.name.contains(word)
-                                || competition.name.contains(word)
-                                || game.home_team.contains(word)
-                                || game.away_team.contains(word)
+                            country.name.to_lowercase().contains(word)
+                                || competition.name.to_lowercase().contains(word)
+                                || game.home_team.to_lowercase().contains(word)
+                                || game.away_team.to_lowercase().contains(word)
                         })
                     })
                     .map(|game| game.clone())
