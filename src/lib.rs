@@ -91,6 +91,8 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
             current_competition.games.push(newgame);
         }
     }
+    current_country.competitions.push(current_competition);
+    result.countries.push(current_country);
     result
 }
 
