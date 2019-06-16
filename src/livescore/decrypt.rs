@@ -247,8 +247,8 @@ mod tests {
     fn test_decryption() {
         // Need to trim() what is read from the files as they contain an extra \n at the end
         // otherwise. This then screws up the decryption.
-        let encrypted = read_to_string("src/encrypted.txt");
-        let decrypted = read_to_string("src/decrypted.txt");
+        let encrypted = read_to_string("src/livescore/encrypted.txt");
+        let decrypted = read_to_string("src/livescore/decrypted.txt");
         let mydecrypted = decrypt(encrypted.trim());
         assert_eq!(decrypted.trim(), mydecrypted);
     }
