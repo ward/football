@@ -96,9 +96,9 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
     result
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Football {
-    countries: Vec<Country>,
+    pub countries: Vec<Country>,
 }
 impl Football {
     // TODO This would be much nicer with on-line approximate string matching.
@@ -144,17 +144,27 @@ impl Football {
         games
     }
 
+    pub fn number_of_games(&self) -> usize {
+        let mut ctr = 0;
+        for country in &self.countries {
+            for competition in &country.competitions {
+                ctr = ctr + competition.games.len();
+            }
+        }
+        ctr
+    }
+
     // TODO: Time querying (now, today, tomorrow, ended, ...)
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Country {
-    name: String,
-    competitions: Vec<Competition>,
+    pub name: String,
+    pub competitions: Vec<Competition>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Competition {
-    name: String,
-    games: Vec<Game>,
+    pub name: String,
+    pub games: Vec<Game>,
 }
 #[derive(Debug, Clone)]
 pub struct Game {
@@ -164,11 +174,41 @@ pub struct Game {
     away_score: Option<u8>,
     status: GameStatus,
 }
-#[derive(Debug, Clone)]
+impl fmt::Display for Game {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.status {
+            GameStatus::Ended => write!(
+                f,
+                "(FT) {home} {home_score}-{away_score} {away}",
+                home = self.home_team,
+                home_score = self.home_score.unwrap_or(100),
+                away_score = self.away_score.unwrap_or(100),
+                away = self.away_team
+            ),
+            GameStatus::Upcoming(t) => write!(f, "({}) {} - {}", t, self.home_team, self.away_team),
+            GameStatus::Ongoing(t) => write!(
+                f,
+                "({}) {} {}-{} {}",
+                t,
+                self.home_team,
+                self.home_score.unwrap_or(100),
+                self.away_score.unwrap_or(100),
+                self.away_team
+            ),
+            GameStatus::Postponed => write!(
+                f,
+                "({}) {} - {}",
+                "postponed", self.home_team, self.away_team
+            ),
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
 enum GameStatus {
     Upcoming(u64), // TODO: Replace by Chrono
     Ongoing(String),
     Ended,
+    Postponed,
     // Other(String),
 }
 impl GameStatus {
@@ -188,6 +228,7 @@ impl FromStr for GameStatus {
             // TODO Can we use start_time immediately?
             "NS" => Ok(GameStatus::Upcoming(0)),
             "FT" | "AET" => Ok(GameStatus::Ended),
+            "Postp." => Ok(GameStatus::Postponed),
             // TODO: Only want this for in game time indications (Minutes + HT + ???)
             t => Ok(GameStatus::Ongoing(t.to_owned())),
             // _ => Err(ParseClubLeaderboardSortError),
@@ -272,5 +313,17 @@ mod tests {
         let parsed: LiveScore = serde_json::from_str(&decrypted).unwrap();
         println!("{:#?}", parsed);
         // assert!(false);
+    }
+
+    #[test]
+    fn query_games() {
+        let decrypted = read_to_string("src/decrypted.txt");
+        let decrypted = decrypted.trim();
+        let parsed: LiveScore = serde_json::from_str(&decrypted).unwrap();
+        let games = parse_livescore(parsed);
+        println!("{:#?}", games);
+        let euro_spain = games.query("euro spain");
+        println!("{:#?}", euro_spain);
+        assert_eq!(euro_spain.number_of_games(), 1);
     }
 }
