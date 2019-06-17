@@ -37,16 +37,16 @@ impl Football {
                                 || game.away_team.to_lowercase().contains(word)
                         })
                     })
-                    .map(|game| game.clone())
+                    .cloned()
                     .collect();
-                if filteredgames.len() > 0 {
+                if !filteredgames.is_empty() {
                     filteredcompetitions.push(Competition {
                         name: competition.name.to_owned(),
                         games: filteredgames,
                     });
                 }
             }
-            if filteredcompetitions.len() > 0 {
+            if !filteredcompetitions.is_empty() {
                 games.countries.push(Country {
                     name: country.name.to_owned(),
                     competitions: filteredcompetitions,
@@ -60,7 +60,7 @@ impl Football {
         let mut ctr = 0;
         for country in &self.countries {
             for competition in &country.competitions {
-                ctr = ctr + competition.games.len();
+                ctr += competition.games.len();
             }
         }
         ctr
@@ -107,11 +107,9 @@ impl fmt::Display for Game {
                 self.away_score.unwrap_or(100),
                 self.away_team
             ),
-            GameStatus::Postponed => write!(
-                f,
-                "({}) {} - {}",
-                "postponed", self.home_team, self.away_team
-            ),
+            GameStatus::Postponed => {
+                write!(f, "(postponed) {} - {}", self.home_team, self.away_team)
+            }
         }
     }
 }

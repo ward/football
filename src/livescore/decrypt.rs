@@ -1,3 +1,4 @@
+/// Given an encrypted reply from livescore, decrypts it to a string that makes sense.
 pub fn decrypt(input: &str) -> String {
     b(input)
 }
@@ -149,13 +150,13 @@ fn b(input: &str) -> String {
             }
             if a(t, s, Some(r), &d) {
                 q.push(u16_to_char(10));
-                h = h - (d.length - 1);
+                h -= d.length - 1;
             } else if a(t, s, Some(r), &e) {
                 q.push(u16_to_char(13));
-                h = h - (e.length - 1);
+                h -= e.length - 1;
             } else if a(t, s, Some(r), &f) {
                 q.push(u16_to_char(32));
-                h = h - (f.length - 1);
+                h -= f.length - 1;
             } else {
                 q.push(u16_to_char(
                     *input_utf16
@@ -165,7 +166,7 @@ fn b(input: &str) -> String {
             }
         }
         // Finish JS for loop
-        h = h - 1;
+        h -= 1;
     }
     q
 }

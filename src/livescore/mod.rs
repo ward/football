@@ -53,7 +53,7 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
                 away_team: game.away[0].name.to_owned(),
                 home_score: game.home_score.and_then(|s| s.parse().ok()),
                 away_score: game.away_score.and_then(|s| s.parse().ok()),
-                status: status,
+                status,
             };
             current_competition.games.push(newgame);
         }

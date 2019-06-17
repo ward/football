@@ -1,3 +1,4 @@
+use livescore::Football;
 use std::io;
 use std::io::prelude::*;
 
@@ -11,7 +12,7 @@ fn main() {
         display_football(&filteredgames);
     }
 }
-fn display_football(football: &livescore::Football) {
+fn display_football(football: &Football) {
     for country in &football.countries {
         println!("{}", country.name);
         for competition in &country.competitions {
