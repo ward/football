@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 mod decrypt;
 
-pub fn get_all_games() -> Result<Football, Box<std::error::Error>> {
+pub fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
     let livescore = fetch_livescore()?;
     Ok(parse_livescore(livescore))
 }
@@ -63,7 +63,7 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
     result
 }
 
-fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
+fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let yday = format!(
@@ -86,7 +86,7 @@ fn fetch_livescore() -> Result<LiveScore, Box<std::error::Error>> {
     Ok(livescore)
 }
 
-fn fetch_page(url: &str) -> Result<LiveScore, Box<std::error::Error>> {
+fn fetch_page(url: &str) -> Result<LiveScore, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let builder = client.get(url).header(
         reqwest::header::USER_AGENT,

@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 mod livescore;
 
-pub fn get_all_games() -> Result<Football, Box<std::error::Error>> {
+pub fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
     livescore::get_all_games()
 }
 
@@ -153,7 +153,7 @@ impl error::Error for ParseGameStatusError {
     fn description(&self) -> &str {
         "Failed to parse game status."
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
