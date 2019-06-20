@@ -110,6 +110,9 @@ impl fmt::Display for Game {
             GameStatus::Postponed => {
                 write!(f, "(postponed) {} - {}", self.home_team, self.away_team)
             }
+            GameStatus::Cancelled => {
+                write!(f, "(cancelled) {} - {}", self.home_team, self.away_team)
+            }
         }
     }
 }
@@ -119,6 +122,7 @@ enum GameStatus {
     Ongoing(String),
     Ended,
     Postponed,
+    Cancelled,
     // Other(String),
 }
 impl GameStatus {
@@ -130,6 +134,8 @@ impl GameStatus {
         }
     }
 }
+
+// TODO The following should probably be livescore specific.
 impl FromStr for GameStatus {
     type Err = ParseGameStatusError;
 
@@ -139,6 +145,7 @@ impl FromStr for GameStatus {
             "NS" => Ok(GameStatus::Upcoming(0)),
             "FT" | "AET" => Ok(GameStatus::Ended),
             "Postp." => Ok(GameStatus::Postponed),
+            "Canc." => Ok(GameStatus::Cancelled),
             // TODO: Only want this for in game time indications (Minutes + HT + ???)
             t => Ok(GameStatus::Ongoing(t.to_owned())),
             // _ => Err(ParseClubLeaderboardSortError),
