@@ -56,6 +56,33 @@ impl Football {
         games
     }
 
+    pub fn fuzzy_query(self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
+        let query = query.to_lowercase();
+        let mut result = vec![];
+        for country in &self.countries {
+            for competition in &country.competitions {
+                for game in &competition.games {
+                    let fullstr = format!(
+                        "{} {} {} {}",
+                        country.name, competition.name, game.home_team, game.away_team
+                    )
+                    .to_lowercase();
+                    let matcher = bitap::bitap(&fullstr, &query);
+                    if matcher.is_match {
+                        result.push((
+                            matcher.score,
+                            country.clone(),
+                            competition.clone(),
+                            game.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+        result.sort_by(|(score1, _, _, _), (score2, _, _, _)| score1.partial_cmp(score2).unwrap());
+        result
+    }
+
     pub fn number_of_games(&self) -> usize {
         let mut ctr = 0;
         for country in &self.countries {

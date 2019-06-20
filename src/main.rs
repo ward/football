@@ -8,8 +8,12 @@ fn main() {
     for line in stdin.lock().lines() {
         let query = line.unwrap();
         let games = games.clone();
-        let filteredgames = games.query(&query);
-        display_football(&filteredgames);
+        let filteredgames = games.fuzzy_query(&query);
+        for (score, country, competition, game) in filteredgames {
+            println!("{} {} {} {}", score, country.name, competition.name, game);
+        }
+        // let filteredgames = games.query(&query);
+        // display_football(&filteredgames);
     }
 }
 fn display_football(football: &Football) {
