@@ -13,8 +13,6 @@ pub struct Football {
     pub countries: Vec<Country>,
 }
 impl Football {
-    // TODO This would be much nicer with on-line approximate string matching.
-    //      bitap algorithm or somesuch?
     /// Splits string into pieces, only keeps games for which every piece is matched by either
     /// country, competition, or teams
     pub fn query(self, query: &str) -> Football {
@@ -56,8 +54,12 @@ impl Football {
         games
     }
 
+    // TODO: I want both "women world cup" and "world cup women" to match the same manner.
+    // Idea: split up and see if I can just add the match number for each to get something
+    // meaningful? (Perhaps this is more something for the bitap library side)
     pub fn fuzzy_query(self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
         let query = query.to_lowercase();
+        let bitap = bitap::Bitap::new().distance(100_000).threshold(0.3);
         let mut result = vec![];
         for country in &self.countries {
             for competition in &country.competitions {
@@ -67,7 +69,7 @@ impl Football {
                         country.name, competition.name, game.home_team, game.away_team
                     )
                     .to_lowercase();
-                    let matcher = bitap::bitap(&fullstr, &query);
+                    let matcher = bitap.bitap(&fullstr, &query);
                     if matcher.is_match {
                         result.push((
                             matcher.score,
