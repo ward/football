@@ -8,7 +8,7 @@ fn main() {
     for line in stdin.lock().lines() {
         let query = line.unwrap();
         let games = games.clone();
-        let filteredgames = games.fuzzy_query(&query);
+        let filteredgames = games.mixed_query(&query);
         for (score, country, competition, game) in filteredgames {
             println!("{} {} {} {}", score, country.name, competition.name, game);
         }
