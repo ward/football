@@ -46,7 +46,8 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
             };
         }
         for game in stage.games {
-            let status: GameStatus = game.time.parse().expect("Game status should always parse");
+            let status: GameStatus = GameStatus::parse_from_livescore(&game.time)
+                .expect("Game status should always parse");
             let status = status.set_start_time(game.start_time);
             let newgame = Game {
                 home_team: game.home[0].name.to_owned(),
@@ -137,6 +138,36 @@ struct LiveScoreGames {
 struct LiveScoreTeam {
     #[serde(rename = "Nm")]
     name: String,
+}
+
+impl GameStatus {
+    fn parse_from_livescore(s: &str) -> Result<Self, ParseGameStatusError> {
+        match s {
+            // TODO Can we use start_time immediately?
+            "NS" => Ok(GameStatus::Upcoming(0)),
+            "FT" | "AET" => Ok(GameStatus::Ended),
+            "Postp." => Ok(GameStatus::Postponed),
+            "Canc." => Ok(GameStatus::Cancelled),
+            // TODO: Only want this for in game time indications (Minutes + HT + ???)
+            t => Ok(GameStatus::Ongoing(t.to_owned())),
+            // _ => Err(ParseClubLeaderboardSortError),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct ParseGameStatusError;
+impl std::error::Error for ParseGameStatusError {
+    fn description(&self) -> &str {
+        "Failed to parse game status."
+    }
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
+    }
+}
+impl std::fmt::Display for ParseGameStatusError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Failed to parse game status.")
+    }
 }
 
 #[cfg(test)]
