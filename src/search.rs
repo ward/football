@@ -3,7 +3,7 @@ use super::generic_structs::*;
 impl Football {
     /// Splits string into pieces, only keeps games for which every piece is matched by either
     /// country, competition, or teams
-    pub fn query(self, query: &str) -> Football {
+    pub fn query(&self, query: &str) -> Football {
         let query: Vec<_> = query
             .split(|c: char| !c.is_ascii_alphabetic())
             .map(|word| word.to_lowercase())
@@ -45,7 +45,7 @@ impl Football {
     // TODO: I want both "women world cup" and "world cup women" to match the same manner.
     // Idea: split up and see if I can just add the match number for each to get something
     // meaningful? (Perhaps this is more something for the bitap library side)
-    pub fn fuzzy_query(self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
+    pub fn fuzzy_query(&self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
         let query = query.to_lowercase();
         let bitap = bitap::Bitap::new().distance(100_000).threshold(0.3);
         let mut result = vec![];
@@ -76,7 +76,7 @@ impl Football {
     // TODO: I want both "women world cup" and "world cup women" to match the same manner.
     // Idea: split up and see if I can just add the match number for each to get something
     // meaningful? (Perhaps this is more something for the bitap library side)
-    pub fn mixed_query(self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
+    pub fn mixed_query(&self, query: &str) -> Vec<(f64, Country, Competition, Game)> {
         let query: Vec<_> = query
             .split(|c: char| !c.is_ascii_alphabetic())
             .map(|word| word.to_lowercase())
