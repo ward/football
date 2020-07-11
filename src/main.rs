@@ -1,9 +1,9 @@
-use livescore::Football;
+use football::Football;
 use std::io;
 use std::io::prelude::*;
 
 fn main() {
-    let games = livescore::get_all_games().expect("Main error");
+    let games = football::get_all_games().expect("Main error");
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let query = line.unwrap();
@@ -16,7 +16,7 @@ fn main() {
         // display_football(&filteredgames);
     }
 }
-fn display_football(football: &Football) {
+fn _display_football(football: &Football) {
     for country in &football.countries {
         println!("{}", country.name);
         for competition in &country.competitions {
