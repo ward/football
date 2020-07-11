@@ -4,6 +4,8 @@ use super::Football;
 use super::Game;
 use super::GameStatus;
 use serde::{Deserialize, Serialize};
+// Need this for datetime_from_str
+use chrono::prelude::*;
 
 mod decrypt;
 
@@ -48,13 +50,16 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
         for game in stage.games {
             let status: GameStatus = GameStatus::parse_from_livescore(&game.time)
                 .expect("Game status should always parse");
-            let status = status.set_start_time(game.start_time);
+            let datetime = chrono::Utc
+                .datetime_from_str(&game.start_time.to_string(), "%Y%m%d%H%M00")
+                .expect("Failed to parse game start time");
             let newgame = Game {
                 home_team: game.home[0].name.to_owned(),
                 away_team: game.away[0].name.to_owned(),
                 home_score: game.home_score.and_then(|s| s.parse().ok()),
                 away_score: game.away_score.and_then(|s| s.parse().ok()),
                 status,
+                start_time: datetime,
             };
             current_competition.games.push(newgame);
         }
@@ -144,7 +149,7 @@ impl GameStatus {
     fn parse_from_livescore(s: &str) -> Result<Self, ParseGameStatusError> {
         match s {
             // TODO Can we use start_time immediately?
-            "NS" => Ok(GameStatus::Upcoming(0)),
+            "NS" => Ok(GameStatus::Upcoming),
             "FT" | "AET" => Ok(GameStatus::Ended),
             "Postp." => Ok(GameStatus::Postponed),
             "Canc." => Ok(GameStatus::Cancelled),

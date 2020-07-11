@@ -27,6 +27,7 @@ pub struct Game {
     pub away_team: String,
     pub home_score: Option<u8>,
     pub away_score: Option<u8>,
+    pub start_time: chrono::DateTime<chrono::Utc>,
     pub status: GameStatus,
 }
 
@@ -41,7 +42,11 @@ impl fmt::Display for Game {
                 away_score = self.away_score.unwrap_or(100),
                 away = self.away_team
             ),
-            GameStatus::Upcoming(t) => write!(f, "({}) {} - {}", t, self.home_team, self.away_team),
+            GameStatus::Upcoming => write!(
+                f,
+                "({}) {} - {}",
+                self.start_time, self.home_team, self.away_team
+            ),
             GameStatus::Ongoing(t) => write!(
                 f,
                 "({}) {} {}-{} {}",
@@ -63,20 +68,10 @@ impl fmt::Display for Game {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameStatus {
-    Upcoming(u64), // TODO: Replace by Chrono (otoh extra dep)
+    Upcoming,
     Ongoing(String),
     Ended,
     Postponed,
     Cancelled,
     // Other(String),
-}
-
-impl GameStatus {
-    pub fn set_start_time(self, start_time: u64) -> GameStatus {
-        if let GameStatus::Upcoming(_) = self {
-            GameStatus::Upcoming(start_time)
-        } else {
-            self
-        }
-    }
 }
