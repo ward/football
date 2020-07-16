@@ -150,7 +150,11 @@ impl GameStatus {
         match s {
             // TODO Can we use start_time immediately?
             "NS" => Ok(GameStatus::Upcoming),
-            "FT" | "AET" => Ok(GameStatus::Ended),
+            // TODO AP (After Penalties) puts a * at the winner, but this is not parsed. So you
+            // dont know who actually won the game in that case.
+            // TODO Also now the AET and AP information is lost completely. Add another variant to
+            // the enum?
+            "FT" | "AET" | "AP" => Ok(GameStatus::Ended),
             "Postp." => Ok(GameStatus::Postponed),
             "Canc." => Ok(GameStatus::Cancelled),
             // TODO: Only want this for in game time indications (Minutes + HT + ???)
