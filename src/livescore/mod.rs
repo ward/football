@@ -70,6 +70,10 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
 }
 
 fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
+    // TODO This will mess up between my midnight and midnight UTC-9. Missing the actual today
+    // games then if I got it right. Will have to debug when in that timeframe. Perhaps adding time
+    // explicitly in today's link will be sufficient.
+    // (Wont be enough, assigning incorrect date to games in that window too I think)
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let yday = format!(
