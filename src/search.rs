@@ -1,4 +1,5 @@
-use super::generic_structs::*;
+use crate::generic_structs::*;
+use chrono::prelude::*;
 
 impl Football {
     /// Splits string into pieces, only keeps games for which every piece is matched by either
@@ -127,5 +128,68 @@ impl Football {
         ctr
     }
 
-    // TODO: Time querying (now, today, tomorrow, ended, ...)
+    // TODO Can I expand this to include basic querying too? Would need different functions to
+    // apply to country and competition then though...
+    pub fn generic_filter(&self, predicate: impl Fn(&&Game) -> bool + Copy) -> Football {
+        let mut games = Football { countries: vec![] };
+
+        for country in &self.countries {
+            let mut filteredcompetitions = vec![];
+            for competition in &country.competitions {
+                let filteredgames: Vec<_> = competition
+                    .games
+                    .iter()
+                    .filter(predicate)
+                    .cloned()
+                    .collect();
+                if !filteredgames.is_empty() {
+                    filteredcompetitions.push(Competition {
+                        name: competition.name.to_owned(),
+                        games: filteredgames,
+                    });
+                }
+            }
+            if !filteredcompetitions.is_empty() {
+                games.countries.push(Country {
+                    name: country.name.to_owned(),
+                    competitions: filteredcompetitions,
+                });
+            }
+        }
+
+        games
+    }
+
+    pub fn today(&self) -> Football {
+        let now = Utc::now();
+        self.generic_filter(|game| game.start_time.ordinal() == now.ordinal())
+    }
+
+    pub fn tomorrow(&self) -> Football {
+        let now = Utc::now();
+        // TODO: Will fail on 31 December.
+        self.generic_filter(|game| game.start_time.ordinal() == now.ordinal() + 1)
+    }
+
+    pub fn yesterday(&self) -> Football {
+        let now = Utc::now();
+        // TODO: Will fail on 1 January.
+        self.generic_filter(|game| game.start_time.ordinal() == now.ordinal() - 1)
+    }
+
+    // TODO: This is more status than time so this module is badly named
+    pub fn ended(&self) -> Football {
+        self.generic_filter(|game| game.status == GameStatus::Ended)
+    }
+
+    pub fn live(&self) -> Football {
+        self.generic_filter(|game| match game.status {
+            GameStatus::Ongoing(_) => true,
+            _ => false,
+        })
+    }
+
+    pub fn upcoming(&self) -> Football {
+        self.generic_filter(|game| game.status == GameStatus::Upcoming)
+    }
 }
