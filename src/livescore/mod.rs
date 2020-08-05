@@ -70,12 +70,12 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
 }
 
 fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
-    // TODO This will mess up between my midnight and midnight UTC-9. Missing the actual today
-    // games then if I got it right. Will have to debug when in that timeframe. Perhaps adding time
-    // explicitly in today's link will be sufficient.
-    // (Wont be enough, assigning incorrect date to games in that window too I think)
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
+    let today = format!(
+        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
+        utc.format("%Y-%m-%d").to_string()
+    );
     let yday = format!(
         "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
         (utc - oneday).format("%Y-%m-%d").to_string()
@@ -84,13 +84,9 @@ fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
         "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
         (utc + oneday).format("%Y-%m-%d").to_string()
     );
-    let urls = vec![
-        "http://www.livescore.com/~~/r/07/hp/soccer/0/", // today
-        &yday,
-        &tomorrow,
-    ];
+    let urls = vec![today, yday, tomorrow];
     let mut livescore = LiveScore { stages: vec![] };
-    for url in urls {
+    for url in &urls {
         livescore.union(fetch_page(url)?);
     }
     Ok(livescore)
