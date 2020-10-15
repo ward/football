@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// Container struct for all football scores
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Football {
     pub countries: Vec<Country>,
 }
