@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 // Need this for datetime_from_str
 use chrono::prelude::*;
 
-mod decrypt;
+// mod decrypt;
 
 pub fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
     let livescore = fetch_livescore()?;
@@ -73,16 +73,16 @@ fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let today = format!(
-        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
-        utc.format("%Y-%m-%d").to_string()
+        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        utc.format("%Y%m%d").to_string()
     );
     let yday = format!(
-        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
-        (utc - oneday).format("%Y-%m-%d").to_string()
+        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        (utc - oneday).format("%Y%m%d").to_string()
     );
     let tomorrow = format!(
-        "http://www.livescore.com/~~/r/07/hpx/soccer/{}/0/",
-        (utc + oneday).format("%Y-%m-%d").to_string()
+        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        (utc + oneday).format("%Y%m%d").to_string()
     );
     let urls = vec![today, yday, tomorrow];
     let mut livescore = LiveScore { stages: vec![] };
@@ -96,11 +96,10 @@ fn fetch_page(url: &str) -> Result<LiveScore, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let builder = client.get(url).header(
         reqwest::header::USER_AGENT,
-        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:82.0) Gecko/20100101 Firefox/82.0",
     );
-    let encrypted: String = builder.send()?.text()?;
-    let decrypted = decrypt::decrypt(&encrypted);
-    let parsed = serde_json::from_str(&decrypted)?;
+    let result: String = builder.send()?.text()?;
+    let parsed = serde_json::from_str(&result)?;
     Ok(parsed)
 }
 
