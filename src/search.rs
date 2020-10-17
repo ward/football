@@ -192,4 +192,40 @@ impl Football {
     pub fn upcoming(&self) -> Football {
         self.generic_filter(|game| game.status == GameStatus::Upcoming)
     }
+
+    /// Only keep games played in country. Empty if nothing
+    pub fn country(&self, country_name: &str) -> Self {
+        let filtered_countries = self
+            .countries
+            .iter()
+            .filter(|country| country.name.eq_ignore_ascii_case(country_name))
+            .cloned();
+        Self {
+            countries: filtered_countries.collect(),
+        }
+    }
+
+    /// Only keep games played in competition. Empty if nothing
+    pub fn competition(&self, competition_name: &str) -> Self {
+        let filtered_countries = self.countries.iter().filter_map(|country| {
+            let filtered_comps = country
+                .competitions
+                .iter()
+                .filter(|competition| competition.name.eq_ignore_ascii_case(competition_name))
+                .cloned();
+            let comps: Vec<_> = filtered_comps.collect();
+            if !comps.is_empty() {
+                Some(Country {
+                    competitions: comps,
+                    name: country.name.clone(),
+                })
+            } else {
+                None
+            }
+        });
+
+        Self {
+            countries: filtered_countries.collect(),
+        }
+    }
 }

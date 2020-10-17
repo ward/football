@@ -12,15 +12,16 @@ fn main() {
         // for (score, country, competition, game) in filteredgames {
         //     println!("{} {} {} {}", score, country.name, competition.name, game);
         // }
-        let filteredgames = match query.as_str() {
-            "today" => games.today(),
-            "tomorrow" => games.tomorrow(),
-            "yesterday" => games.yesterday(),
-            "ended" => games.ended(),
-            "live" => games.live(),
-            "upcoming" => games.upcoming(),
-            _ => games.query(&query),
-        };
+        // let filteredgames = match query.as_str() {
+        //     "today" => games.today(),
+        //     "tomorrow" => games.tomorrow(),
+        //     "yesterday" => games.yesterday(),
+        //     "ended" => games.ended(),
+        //     "live" => games.live(),
+        //     "upcoming" => games.upcoming(),
+        //     _ => games.query(&query),
+        // };
+        let filteredgames = games.competition(&query);
         _display_football(&filteredgames);
     }
 }
