@@ -19,11 +19,9 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
     if livescore.stages.is_empty() {
         return result;
     }
-    livescore.stages.sort_by(|a, b| {
-        a.country_name
-            .cmp(&b.country_name)
-            .then(a.competition_name.cmp(&b.competition_name))
-    });
+    // We do the sorting because fetching multiple days puts things in inconsistent order across
+    // days.
+    livescore.sort_by_priority();
     let mut current_competition = Competition {
         name: livescore.stages[0].competition_name.to_owned(),
         games: vec![],
@@ -109,10 +107,41 @@ struct LiveScore {
     stages: Vec<LiveScoreStage>,
 }
 impl LiveScore {
+    /// Sorts countries alphabetically, and the competitions within each country too
+    fn sort_by_alpha(&mut self) {
+        self.stages.sort_by(|a, b| {
+            a.country_name
+                .cmp(&b.country_name)
+                .then(a.competition_name.cmp(&b.competition_name))
+        });
+    }
+
+    /// Sorts by priority. Downside of the everything by country data in Football is that EPL >
+    /// Serie A puts *all* competitions in England ahead of those in Italy.
+    fn sort_by_priority(&mut self) {
+        self.stages.sort();
+    }
+
     fn union(&mut self, mut other: LiveScore) {
         self.stages.append(&mut other.stages);
     }
 }
+/// Our order is by a priority of importance. This const is used in the implementation of Ord
+const COUNTRY_PRIORITIES: &'static [(&'static str, &'static str)] = &[
+    ("World Cup", ""),
+    ("UEFA Nations League", ""),
+    ("Champions League", ""),
+    ("Europa League", ""),
+    ("England", "Premier League"),
+    ("England", "Sky Bet Championship"),
+    ("Germany", "Bundesliga"),
+    ("Spain", "LaLiga Santander"),
+    ("Italy", "Serie A"),
+    ("Belgium", "Jupiler League"),
+    ("Belgium", "First Division B"),
+    ("France", "Ligue 1"),
+];
+
 #[derive(Serialize, Deserialize, Debug)]
 struct LiveScoreStage {
     #[serde(rename = "Cnm")]
@@ -122,6 +151,55 @@ struct LiveScoreStage {
     // default catches situations where there is no "Events"
     #[serde(rename = "Events", default)]
     games: Vec<LiveScoreGames>,
+}
+impl std::cmp::PartialEq for LiveScoreStage {
+    fn eq(&self, other: &Self) -> bool {
+        self.country_name == other.country_name && self.competition_name == other.competition_name
+    }
+}
+impl std::cmp::Eq for LiveScoreStage {}
+impl std::cmp::PartialOrd for LiveScoreStage {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+/// Our order is by a priority of importance
+impl std::cmp::Ord for LiveScoreStage {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let a_priority = COUNTRY_PRIORITIES
+            .iter()
+            .position(|(country, _)| *country == self.country_name)
+            .unwrap_or(100);
+        let b_priority = COUNTRY_PRIORITIES
+            .iter()
+            .position(|(country, _)| *country == other.country_name)
+            .unwrap_or(100);
+        match a_priority.cmp(&b_priority) {
+            std::cmp::Ordering::Equal => {
+                let a_priority = COUNTRY_PRIORITIES
+                    .iter()
+                    .position(|(_, competition)| *competition == self.competition_name)
+                    .unwrap_or(100);
+                let b_priority = COUNTRY_PRIORITIES
+                    .iter()
+                    .position(|(_, competition)| *competition == other.competition_name)
+                    .unwrap_or(100);
+                match a_priority.cmp(&b_priority) {
+                    std::cmp::Ordering::Equal => {
+                        // If it was found Equal because same country/competition, then comparing
+                        // will do nothing (as you want). If it was found Equal because we do not
+                        // have it in our list of priorities and the default value was used, then
+                        // this comparison will sort things alphabetically.
+                        self.country_name
+                            .cmp(&other.country_name)
+                            .then(self.competition_name.cmp(&other.competition_name))
+                    }
+                    res => res,
+                }
+            }
+            res => res,
+        }
+    }
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct LiveScoreGames {

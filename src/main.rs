@@ -8,6 +8,7 @@ fn main() {
     for line in stdin.lock().lines() {
         let query = line.unwrap();
         let games = games.clone();
+        let filteredgames = games.query(&query);
         // let filteredgames = games.mixed_query(&query);
         // for (score, country, competition, game) in filteredgames {
         //     println!("{} {} {} {}", score, country.name, competition.name, game);
@@ -21,7 +22,7 @@ fn main() {
         //     "upcoming" => games.upcoming(),
         //     _ => games.query(&query),
         // };
-        let filteredgames = games.competition(&query);
+        // let filteredgames = games.competition(&query);
         _display_football(&filteredgames);
     }
 }
