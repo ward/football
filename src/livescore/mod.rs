@@ -51,9 +51,21 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
             let datetime = chrono::Utc
                 .datetime_from_str(&game.start_time.to_string(), "%Y%m%d%H%M00")
                 .expect("Failed to parse game start time");
+            // There are situations (aka it happened once) where the home or the away team is
+            // empty.
+            let home_team = if !game.home.is_empty() {
+                game.home[0].name.to_owned()
+            } else {
+                String::from("No home team")
+            };
+            let away_team = if !game.away.is_empty() {
+                game.away[0].name.to_owned()
+            } else {
+                String::from("No away team")
+            };
             let newgame = Game {
-                home_team: game.home[0].name.to_owned(),
-                away_team: game.away[0].name.to_owned(),
+                home_team,
+                away_team,
                 home_score: game.home_score.and_then(|s| s.parse().ok()),
                 away_score: game.away_score.and_then(|s| s.parse().ok()),
                 status,
@@ -203,7 +215,7 @@ impl std::cmp::Ord for LiveScoreStage {
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct LiveScoreGames {
-    #[serde(rename = "Eps")]
+    #[serde(rename = "Eps", default)]
     time: String,
     #[serde(rename = "Esd")]
     start_time: u64,
@@ -218,7 +230,7 @@ struct LiveScoreGames {
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct LiveScoreTeam {
-    #[serde(rename = "Nm")]
+    #[serde(rename = "Nm", default)]
     name: String,
 }
 
