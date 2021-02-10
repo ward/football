@@ -31,13 +31,19 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
         competitions: vec![],
     };
     for stage in livescore.stages {
-        if stage.competition_name != current_competition.name {
+        // If competition or country are called differently, we're in a new competition. Save
+        // previous, make new one.
+        // Country renewal handled in next if.
+        if stage.competition_name != current_competition.name
+            || stage.country_name != current_country.name
+        {
             current_country.competitions.push(current_competition);
             current_competition = Competition {
                 name: stage.competition_name.to_owned(),
                 games: vec![],
             };
         }
+        // If country is called differently, we're in a new country. Save previous, make new one.
         if stage.country_name != current_country.name {
             result.countries.push(current_country);
             current_country = Country {
@@ -301,5 +307,54 @@ mod tests {
         let euro_spain = games.query("euro spain");
         println!("{:#?}", euro_spain);
         assert_eq!(euro_spain.number_of_games(), 1);
+    }
+
+    #[test]
+    fn bad_livescore_parsing() {
+        // Encountered a bug when France Cup was parsed right after Belgium Cup. Games from Belgium
+        // Cup ended up in France Cup's list. Failure in the parsing logic.
+        let livescore = LiveScore {
+            stages: vec![
+                LiveScoreStage {
+                    country_name: String::from("Belgium"),
+                    competition_name: String::from("Cup"),
+                    games: vec![LiveScoreGames {
+                        time: String::from("NS"),
+                        start_time: 20210210160000, // Nasty, see the parsing side
+                        home: vec![LiveScoreTeam {
+                            name: String::from("A"),
+                        }],
+                        away: vec![LiveScoreTeam {
+                            name: String::from("B"),
+                        }],
+                        home_score: None,
+                        away_score: None,
+                    }],
+                },
+                LiveScoreStage {
+                    country_name: String::from("France"),
+                    competition_name: String::from("Cup"),
+                    games: vec![LiveScoreGames {
+                        time: String::from("NS"),
+                        start_time: 20210210160000, // Nasty, see the parsing side
+                        home: vec![LiveScoreTeam {
+                            name: String::from("C"),
+                        }],
+                        away: vec![LiveScoreTeam {
+                            name: String::from("D"),
+                        }],
+                        home_score: None,
+                        away_score: None,
+                    }],
+                },
+            ],
+        };
+        let football = parse_livescore(livescore);
+        println!("{:#?}", football);
+        assert_eq!(football.countries.len(), 2);
+        assert_eq!(football.countries[0].competitions.len(), 1);
+        assert_eq!(football.countries[1].competitions.len(), 1);
+        assert_eq!(football.countries[0].competitions[0].games.len(), 1);
+        assert_eq!(football.countries[1].competitions[0].games.len(), 1);
     }
 }
