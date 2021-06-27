@@ -54,30 +54,35 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
         for game in stage.games {
             let status: GameStatus = GameStatus::parse_from_livescore(&game.time)
                 .expect("Game status should always parse");
-            let datetime = chrono::Utc
-                .datetime_from_str(&game.start_time.to_string(), "%Y%m%d%H%M00")
-                .expect("Failed to parse game start time");
-            // There are situations (aka it happened once) where the home or the away team is
-            // empty.
-            let home_team = if !game.home.is_empty() {
-                game.home[0].name.to_owned()
-            } else {
-                String::from("No home team")
-            };
-            let away_team = if !game.away.is_empty() {
-                game.away[0].name.to_owned()
-            } else {
-                String::from("No away team")
-            };
-            let newgame = Game {
-                home_team,
-                away_team,
-                home_score: game.home_score.and_then(|s| s.parse().ok()),
-                away_score: game.away_score.and_then(|s| s.parse().ok()),
-                status,
-                start_time: datetime,
-            };
-            current_competition.games.push(newgame);
+            match chrono::Utc.datetime_from_str(&game.start_time.to_string(), "%Y%m%d%H%M%S") {
+                Ok(datetime) => {
+                    // There are situations (aka it happened once) where the home or the away team is
+                    // empty.
+                    let home_team = if !game.home.is_empty() {
+                        game.home[0].name.to_owned()
+                    } else {
+                        String::from("No home team")
+                    };
+                    let away_team = if !game.away.is_empty() {
+                        game.away[0].name.to_owned()
+                    } else {
+                        String::from("No away team")
+                    };
+                    let newgame = Game {
+                        home_team,
+                        away_team,
+                        home_score: game.home_score.and_then(|s| s.parse().ok()),
+                        away_score: game.away_score.and_then(|s| s.parse().ok()),
+                        status,
+                        start_time: datetime,
+                    };
+                    current_competition.games.push(newgame);
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse game start time. Error: {}", e);
+                    eprintln!("Skipping this game: {:?}", game);
+                }
+            }
         }
     }
     current_country.competitions.push(current_competition);
