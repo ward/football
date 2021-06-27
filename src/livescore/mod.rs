@@ -152,6 +152,8 @@ impl LiveScore {
 /// Our order is by a priority of importance. This const is used in the implementation of Ord
 const COUNTRY_PRIORITIES: &'static [(&'static str, &'static str)] = &[
     ("World Cup", ""),
+    ("Euro 2020", ""),
+    ("Copa America", ""),
     ("UEFA Nations League", ""),
     ("Champions League", ""),
     ("Europa League", ""),
