@@ -266,7 +266,7 @@ impl GameStatus {
             // the enum?
             "FT" | "AET" | "AP" => Ok(GameStatus::Ended),
             "Postp." => Ok(GameStatus::Postponed),
-            "Canc." => Ok(GameStatus::Cancelled),
+            "Canc." | "Aband." => Ok(GameStatus::Cancelled),
             // TODO: Only want this for in game time indications (Minutes + HT + ???)
             t => Ok(GameStatus::Ongoing(t.to_owned())),
             // _ => Err(ParseClubLeaderboardSortError),
