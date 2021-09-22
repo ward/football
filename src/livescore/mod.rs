@@ -154,17 +154,21 @@ const COUNTRY_PRIORITIES: &'static [(&'static str, &'static str)] = &[
     ("World Cup", ""),
     ("Euro 2020", ""),
     ("Copa America", ""),
-    ("UEFA Nations League", ""),
+    // Seems to have been renamed to EURO?
+    // ("UEFA Nations League", ""),
+    ("EURO", ""),
     ("Champions League", ""),
     ("Europa League", ""),
+    ("Europa Conference League", ""),
     ("England", "Premier League"),
-    ("England", "Sky Bet Championship"),
     ("Germany", "Bundesliga"),
     ("Spain", "LaLiga Santander"),
     ("Italy", "Serie A"),
-    ("Belgium", "Jupiler League"),
-    ("Belgium", "First Division B"),
+    ("Belgium", "First Division A"),
+    ("Belgium", "Cup"),
     ("France", "Ligue 1"),
+    ("England", "Sky Bet Championship"),
+    ("Belgium", "First Division B"),
 ];
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -201,6 +205,10 @@ impl std::cmp::Ord for LiveScoreStage {
             .unwrap_or(100);
         match a_priority.cmp(&b_priority) {
             std::cmp::Ordering::Equal => {
+                // TODO This incorrectly gives higher priority to Ethiopia because its league is
+                // called "Premier League" too. It should just be considered no priority and kept
+                // in the alphabetical country order. If I stay explicit in the priority listing it
+                // might not matter anyway though.
                 let a_priority = COUNTRY_PRIORITIES
                     .iter()
                     .position(|(_, competition)| *competition == self.competition_name)
