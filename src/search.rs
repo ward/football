@@ -160,6 +160,17 @@ impl Football {
         games
     }
 
+    /// To help with relevance, show games in a sliding window around the current point in time.
+    /// Provide the numbers of hours to include. E.g., 10 and 16 will give games that started up to
+    /// 10 hrs earlier up to games that will start in the next 16 hrs.
+    pub fn sliding_window(&self, hours_before: u8, hours_after: u8) -> Football {
+        let now = Utc::now();
+        self.generic_filter(|game| {
+            game.start_time <= (now + chrono::Duration::hours(hours_after.into()))
+                && game.start_time >= (now - chrono::Duration::hours(hours_before.into()))
+        })
+    }
+
     pub fn today(&self) -> Football {
         let now = Utc::now();
         self.generic_filter(|game| game.start_time.ordinal() == now.ordinal())
