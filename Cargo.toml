@@ -18,6 +18,7 @@ serde = "1.0"
 serde_json = "1.0"
 chrono = "0.4"
 bitap = { "git"= "https://github.com/ward/bitap" }
+fuzzy-matcher = "*"
 
 # For examples, tests, benchmarks
 [dev-dependencies]
