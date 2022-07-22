@@ -2,6 +2,8 @@ mod generic_structs;
 mod livescore;
 mod search;
 
+pub mod ranking;
+
 pub use generic_structs::*;
 
 pub async fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
