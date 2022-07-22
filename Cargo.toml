@@ -2,15 +2,11 @@
 name = "football"
 version = "0.2.0"
 authors = ["Ward Muylaert <ward.muylaert@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "football"
 path = "src/lib.rs"
-
-[[bin]]
-name = "football-bin"
-path = "src/main.rs"
 
 [dependencies]
 reqwest = "0.9"

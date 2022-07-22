@@ -5,6 +5,7 @@ use std::io::prelude::*;
 fn main() {
     let games = football::get_all_games().expect("Main error");
     let stdin = io::stdin();
+    println!("Enter queries");
     for line in stdin.lock().lines() {
         let query = line.unwrap();
         let games = games.clone();
