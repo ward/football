@@ -9,8 +9,8 @@ use chrono::prelude::*;
 
 // mod decrypt;
 
-pub fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
-    let livescore = fetch_livescore()?;
+pub async fn get_all_games() -> Result<Football, Box<dyn std::error::Error>> {
+    let livescore = fetch_livescore().await?;
     Ok(parse_livescore(livescore))
 }
 
@@ -90,7 +90,7 @@ fn parse_livescore(mut livescore: LiveScore) -> Football {
     result
 }
 
-fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
+async fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let today = format!(
@@ -108,18 +108,18 @@ fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
     let urls = vec![today, yday, tomorrow];
     let mut livescore = LiveScore { stages: vec![] };
     for url in &urls {
-        livescore.union(fetch_page(url)?);
+        livescore.union(fetch_page(url).await?);
     }
     Ok(livescore)
 }
 
-fn fetch_page(url: &str) -> Result<LiveScore, Box<dyn std::error::Error>> {
+async fn fetch_page(url: &str) -> Result<LiveScore, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let builder = client.get(url).header(
         reqwest::header::USER_AGENT,
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:82.0) Gecko/20100101 Firefox/82.0",
     );
-    let result: String = builder.send()?.text()?;
+    let result: String = builder.send().await?.text().await?;
     let parsed = serde_json::from_str(&result)?;
     Ok(parsed)
 }
