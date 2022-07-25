@@ -1,8 +1,9 @@
 //! https://www.bbc.com/sport/football/belgian-pro-league/table
 
+use fuzzy_matcher::FuzzyMatcher;
 use serde::Deserialize;
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
 pub struct Beebs {
     pub search: Search,
@@ -12,22 +13,29 @@ impl Beebs {
     pub async fn new() -> Result<(), Box<dyn std::error::Error>> {
         let belgian_table =
             fetch_page("https://www.bbc.com/sport/football/belgian-pro-league/table").await?;
-        let tables_info =
-            Self::get_tables_info(&belgian_table).ok_or(SearchError::DidNotFindRawTableInfo)?;
+        let tables_info = Self::get_tables_info(&belgian_table)?;
         log::trace!("{}", tables_info);
         let mut search = Search::new();
         search.update_data(tables_info);
-        log::debug!("{:#?}", search);
+        log::trace!("{:#?}", search);
         Ok(())
     }
 
-    fn get_tables_info(content: &str) -> Option<&str> {
+    fn get_tables_info(content: &str) -> Result<&str, SearchError> {
         // The relevant line contains this needle
-        let needle_position = content.find("bbc-morph-sport-teams-competitions-list")?;
-        let meta_position = content[needle_position..].find("{\"meta\":")? + needle_position;
+        let needle_position = content
+            .find("bbc-morph-sport-teams-competitions-list")
+            .ok_or(SearchError::DidNotFindRawTableInfo)?;
+        let meta_position = content[needle_position..]
+            .find("{\"meta\":")
+            .ok_or(SearchError::DidNotFindRawTableInfo)?
+            + needle_position;
         // Not -1 because the range already excludes this position
-        let end_position = content[meta_position..].find(");")? + meta_position;
-        Some(&content[meta_position..end_position])
+        let end_position = content[meta_position..]
+            .find(");")
+            .ok_or(SearchError::DidNotFindRawTableInfo)?
+            + meta_position;
+        Ok(&content[meta_position..end_position])
     }
 }
 
@@ -69,7 +77,7 @@ pub struct Search {
     /// From a potential search hit (e.g., Belgium) to a possible URL (e.g., the one for the 1st
     /// division in Belgium).
     /// TODO: One hit can point to many urls so need to rethink the value part of the hashmap
-    data: HashMap<String, String>,
+    data: HashMap<String, Vec<String>>,
     fuzzy_matcher: fuzzy_matcher::skim::SkimMatcherV2,
 }
 
@@ -102,7 +110,7 @@ impl Search {
         self.hashed = Self::hash_input(input);
         match serde_json::from_str(input) {
             Ok::<ParseSearch, _>(parsed) => {
-                log::debug!("Parsed: {:#?}", parsed);
+                log::trace!("Parsed: {:#?}", parsed);
                 let leagues = parsed.body;
                 for league in leagues {
                     // These seem to be team pages we don't care for
@@ -112,19 +120,31 @@ impl Search {
                     let mut keys = league.alternatives;
                     keys.push(league.name);
                     for key in keys {
-                        if self.data.contains_key(&key) {
-                            log::error!("Double key, need to rethink my setup. {}, {}", key, league.url);
-                            log::error!("Existing key: {:#?}", self.data.get_key_value(&key));
+                        match self.data.get_mut(&key) {
+                            Some(value) => value.push(league.url.to_string()),
+                            None => {
+                                self.data.insert(key, vec![league.url.to_string()]);
+                            }
                         }
-                        self.data.insert(key, league.url.to_string());
                     }
                 }
-            },
-            Err(e) => log::error!("{}", e)
+            }
+            // TODO Make this return a result
+            Err(e) => log::error!("{}", e),
         }
     }
 
-    pub fn search(&self, needle: &str) {}
+    pub fn search(&self, needle: &str) -> Vec<(i64, &String)> {
+        // TODO Decide on the exact interface for this
+        let mut matches = vec![];
+        for (key, _values) in &self.data {
+            if let Some(score) = self.fuzzy_matcher.fuzzy_match(key, needle) {
+                matches.push((score, key));
+            }
+        }
+        matches.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
+        matches
+    }
 }
 
 async fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -144,4 +164,22 @@ struct ParseLeague {
     url: String,
     #[serde(default)]
     alternatives: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_search() {
+        env_logger::init();
+        let content = include_str!("belgium.1a.html");
+        let tables_info = Beebs::get_tables_info(&content).unwrap();
+        let mut search = Search::new();
+        search.update_data(tables_info);
+        assert_eq!(
+            vec![(149, &"rsc anderlecht".to_string())],
+            search.search("ANDelech")
+        );
+    }
 }

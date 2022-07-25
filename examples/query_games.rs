@@ -2,8 +2,9 @@ use football::Football;
 use std::io;
 use std::io::prelude::*;
 
-fn main() {
-    let games = football::get_all_games().expect("Main error");
+#[tokio::main]
+async fn main() {
+    let games = football::get_all_games().await.expect("Main error");
     let stdin = io::stdin();
     println!("Enter queries");
     for line in stdin.lock().lines() {
