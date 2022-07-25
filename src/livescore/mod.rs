@@ -131,7 +131,7 @@ struct LiveScore {
 }
 impl LiveScore {
     /// Sorts countries alphabetically, and the competitions within each country too
-    fn sort_by_alpha(&mut self) {
+    fn _sort_by_alpha(&mut self) {
         self.stages.sort_by(|a, b| {
             a.country_name
                 .cmp(&b.country_name)
