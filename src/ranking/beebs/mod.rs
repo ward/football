@@ -1,9 +1,9 @@
-//! https://www.bbc.com/sport/football/belgian-pro-league/table
+//! <https://www.bbc.com/sport/football/belgian-pro-league/table>
 
 mod search;
 mod table;
 
-use search::*;
+pub use search::Search;
 use table::League;
 
 pub struct Beebs {

@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 
-/// Uses https://crates.io/crates/fuzzy-matcher under the hood
+/// Uses <https://crates.io/crates/fuzzy-matcher> under the hood
 pub struct Search {
     hashed: String,
     /// From a potential search hit (e.g., Belgium) to a possible URL (e.g., the one for the 1st
@@ -86,15 +86,18 @@ impl Search {
         Ok(&content[meta_position..end_position])
     }
 
-    pub fn search(&self, needle: &str) -> Vec<(i64, &String)> {
+    pub fn search(&self, needle: &str) -> Vec<(i64, &String, &Vec<String>)> {
         // TODO Decide on the exact interface for this
         let mut matches = vec![];
-        for (key, _values) in &self.data {
+        // TODO Add values in the result since that will be the connection to more
+        for (key, values) in &self.data {
             if let Some(score) = self.fuzzy_matcher.fuzzy_match(key, needle) {
-                matches.push((score, key));
+                matches.push((score, key, values));
             }
         }
-        matches.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap());
+        matches.sort_unstable_by(|(a_score, a_name, _a_url), (b_score, b_name, _b_url)| {
+            b_score.cmp(a_score).then_with(|| a_name.cmp(b_name))
+        });
         matches
     }
 }
