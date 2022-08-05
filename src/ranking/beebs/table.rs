@@ -15,14 +15,14 @@ impl std::fmt::Display for League {
 
 #[derive(Debug)]
 pub struct Entry {
-    rank: u8,
+    rank: i8,
     team: String,
-    win: u8,
-    draw: u8,
-    lose: u8,
-    gf: u8,
-    ga: u8,
-    points: u8,
+    win: i8,
+    draw: i8,
+    lose: i8,
+    gf: i8,
+    ga: i8,
+    points: i8,
 }
 
 impl std::fmt::Display for Entry {
@@ -46,10 +46,7 @@ impl League {
     pub fn from(content: &str) -> Vec<Self> {
         if let Some(json_blob) = Self::find_json_blob(content) {
             match serde_json::from_str(json_blob) {
-                Ok::<ParseRanks, _>(parsed) => {
-                    // TODO Handle extra "leagues" showing on a page
-                    vec![parsed.to_league()]
-                }
+                Ok::<ParseRanks, _>(parsed) => parsed.to_leagues(),
                 Err(e) => {
                     eprintln!("Failed to parse: {}", e);
                     vec![]
@@ -85,7 +82,12 @@ struct ParseSportTable {
 }
 #[derive(Deserialize, Debug)]
 struct ParseActualTable {
+    group: ParseGroupMeta,
     rows: Vec<ParseRow>,
+}
+#[derive(Deserialize, Debug)]
+struct ParseGroupMeta {
+    name: Option<String>,
 }
 #[derive(Deserialize, Debug)]
 struct ParseRow {
@@ -98,30 +100,62 @@ struct ParseCell {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum ParseTd {
-    ParseTdString { text: String },
-    ParseTdNumber { text: u8 },
-    ParseTdForm { form: Vec<ParseForm> },
+    ParseTdString {
+        text: String,
+    },
+    ParseTdNumber {
+        text: i8,
+    },
+    ParseTdForm {
+        form: Vec<ParseForm>,
+    },
+    ParseTdLink {
+        #[serde(rename = "abbrLink")]
+        abbr_link: ParseLink,
+    },
 }
 #[derive(Deserialize, Debug)]
 struct ParseForm {
     result: String,
 }
+#[derive(Deserialize, Debug)]
+struct ParseLink {
+    text: String,
+}
 
 impl ParseRanks {
-    fn to_league(&self) -> League {
-        let name = self.body.sport_tables.title.to_string();
-        let url = String::from("");
-        let entries: Vec<Entry> = self
-            .body
-            .sport_tables
-            .tables
-            .get(0)
-            .unwrap()
-            .rows
-            .iter()
-            .map(|row| row.to_entry())
-            .collect();
-        League { name, url, entries }
+    fn to_leagues(&self) -> Vec<League> {
+        let competition_name = if self.body.sport_tables.title.ends_with(" Tables") {
+            // TODO Cut off the last part or use a replace or somesuch. Maybe go to chars and back?
+            self.body.sport_tables.title.to_string()
+        } else {
+            self.body.sport_tables.title.to_string()
+        };
+        let mut leagues = vec![];
+        for league in &self.body.sport_tables.tables {
+            let name = if let Some(group_name) = &league.group.name {
+                format!(
+                    "{} {}",
+                    competition_name,
+                    group_name
+                )
+            } else {
+                competition_name.to_string()
+            };
+            let url = String::from("");
+            let entries: Vec<Entry> = self
+                .body
+                .sport_tables
+                .tables
+                .get(0)
+                .unwrap()
+                .rows
+                .iter()
+                .map(|row| row.to_entry())
+                .collect();
+            leagues.push(League { name, url, entries })
+        }
+        leagues
     }
 }
 
@@ -161,9 +195,10 @@ impl ParseTd {
                 .collect::<Vec<_>>()
                 .join(""),
             ParseTd::ParseTdNumber { text } => text.to_string(),
+            ParseTd::ParseTdLink { abbr_link } => abbr_link.text.to_string(),
         }
     }
-    fn to_inner_number(&self) -> u8 {
+    fn to_inner_number(&self) -> i8 {
         match self {
             ParseTd::ParseTdNumber { text } => *text,
             _ => panic!("Fix me"),
@@ -177,10 +212,23 @@ mod tests {
 
     #[test]
     fn parse_table() {
-        env_logger::init();
+        let _ = env_logger::builder().is_test(true).try_init();
+
         let content = include_str!("belgium.1a.html");
 
         let leagues = League::from(content);
         assert_eq!(leagues.len(), 1);
+    }
+
+    #[test]
+    fn parse_groups() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let content = include_str!("cl.html");
+
+        let leagues = League::from(content);
+        assert_eq!(leagues.len(), 8);
+
+        let group_f = leagues.get(5).unwrap();
+        assert_eq!(group_f.name, "Champions League Group F");
     }
 }

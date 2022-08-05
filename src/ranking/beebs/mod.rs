@@ -9,7 +9,7 @@ use table::League;
 
 #[derive(Debug)]
 pub struct Beebs {
-    // TODO There needs to be some order here, name or url to league or whatever
+    /// URL -> [League]
     leagues: HashMap<String, Vec<CachedLeague>>,
     search: search::Search,
 }

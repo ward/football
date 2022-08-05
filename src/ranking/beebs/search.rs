@@ -155,12 +155,13 @@ mod tests {
 
     #[test]
     fn parse_search() {
-        env_logger::init();
+        let _ = env_logger::builder().is_test(true).try_init();
+
         let content = include_str!("belgium.1a.html");
         let mut search = Search::new();
         search.update_data(&content).unwrap();
         assert_eq!(
-            vec![(149, &"rsc anderlecht".to_string())],
+            vec![(149, &"rsc anderlecht".to_string(), &vec!["/sport/football/belgian-pro-league/table".to_string()])],
             search.search("ANDelech")
         );
     }
