@@ -172,12 +172,7 @@ impl ParseRanks {
             } else {
                 competition_name.to_string()
             };
-            let entries: Vec<Entry> = self
-                .body
-                .sport_tables
-                .tables
-                .get(0)
-                .unwrap()
+            let entries: Vec<Entry> = league
                 .rows
                 .iter()
                 .map(|row| row.to_entry())
@@ -258,6 +253,8 @@ mod tests {
         assert_eq!(leagues.len(), 8);
 
         let group_f = leagues.get(5).unwrap();
-        assert_eq!(group_f.name, "Champions League Group F");
+        assert_eq!(group_f.name, "Champions League Tables Group F");
+
+        assert_eq!(group_f.entries.get(0).unwrap().team, "Manchester United");
     }
 }
