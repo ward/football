@@ -3,13 +3,12 @@ use serde::Deserialize;
 #[derive(Debug)]
 pub struct League {
     name: String,
-    url: String,
     pub entries: Vec<Entry>,
 }
 
 impl std::fmt::Display for League {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "League: {} at {}", self.name, self.url)
+        write!(f, "League: {}", self.name)
     }
 }
 
@@ -43,6 +42,7 @@ impl std::fmt::Display for Entry {
 }
 
 impl League {
+    /// Parses all leagues and groups present in the given content. Empty vec in case of failure.
     pub fn from(content: &str) -> Vec<Self> {
         if let Some(json_blob) = Self::find_json_blob(content) {
             match serde_json::from_str(json_blob) {
@@ -63,6 +63,40 @@ impl League {
         // Not -1 because the range already excludes this position
         let end_position = content[meta_position..].find(");")? + meta_position;
         Some(&content[meta_position..end_position])
+    }
+
+    /// Gets all ranked entries
+    pub fn get_ranking(&self) -> &Vec<Entry> {
+        &self.entries
+    }
+
+    /// Gets up to 6 teams around a certain position
+    pub fn get_ranking_around(&self, idx: usize) -> &[Entry] {
+        let length = self.entries.len();
+        let range = if length <= 6 {
+            0..length
+        } else if idx <= 3 {
+            0..6
+        } else if idx >= length - 2 {
+            (length - 6)..length
+        } else {
+            (idx - 3)..(idx + 3)
+        };
+        &self.entries[range]
+    }
+
+    /// Returns 0 indexed position.
+    /// Defaults to 0 if nothing found.
+    /// Yes that makes little sense but we're only using this in one place.
+    pub fn find_team_position(&self, needle: &str) -> usize {
+        let needle = needle.to_lowercase();
+        for rank in &self.entries {
+            let team_name = rank.team.to_lowercase();
+            if team_name.matches(&needle).count() > 0 {
+                return (rank.rank - 1).try_into().unwrap_or(0);
+            }
+        }
+        0
     }
 }
 
@@ -134,15 +168,10 @@ impl ParseRanks {
         let mut leagues = vec![];
         for league in &self.body.sport_tables.tables {
             let name = if let Some(group_name) = &league.group.name {
-                format!(
-                    "{} {}",
-                    competition_name,
-                    group_name
-                )
+                format!("{} {}", competition_name, group_name)
             } else {
                 competition_name.to_string()
             };
-            let url = String::from("");
             let entries: Vec<Entry> = self
                 .body
                 .sport_tables
@@ -153,7 +182,7 @@ impl ParseRanks {
                 .iter()
                 .map(|row| row.to_entry())
                 .collect();
-            leagues.push(League { name, url, entries })
+            leagues.push(League { name, entries })
         }
         leagues
     }

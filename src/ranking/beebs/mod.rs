@@ -10,7 +10,7 @@ use table::League;
 #[derive(Debug)]
 pub struct Beebs {
     /// URL -> [League]
-    leagues: HashMap<String, Vec<CachedLeague>>,
+    leagues: HashMap<String, CachedLeagues>,
     search: search::Search,
 }
 
@@ -23,10 +23,7 @@ impl Beebs {
         search.update_data(&belgian_table)?;
         log::trace!("{:#?}", search);
         let leagues = League::from(&belgian_table);
-        let cached_leagues = leagues
-            .into_iter()
-            .map(|league| CachedLeague::new(league))
-            .collect();
+        let cached_leagues = CachedLeagues::new(&full_url, leagues);
         let mut leagues = HashMap::new();
         leagues.insert(url.to_string(), cached_leagues);
         Ok(Self { leagues, search })
@@ -45,8 +42,7 @@ impl Beebs {
         }
         let url = values.get(0)?;
         let leagues = self.leagues.get(url)?;
-        let league = leagues.get(0)?;
-        Some(&league.league)
+        leagues.get(0)
     }
 }
 
@@ -56,17 +52,60 @@ async fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     Ok(response)
 }
 
+const CACHE_DURATION: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
 #[derive(Debug)]
-struct CachedLeague {
-    league: League,
+pub struct CachedLeagues {
+    leagues: Vec<League>,
+    url: String,
     last_updated: std::time::Instant,
 }
 
-impl CachedLeague {
-    fn new(league: League) -> Self {
-        CachedLeague {
-            league,
+impl CachedLeagues {
+    pub fn new(url: &str, leagues: Vec<League>) -> Self {
+        Self {
+            leagues,
+            url: url.to_string(),
             last_updated: std::time::Instant::now(),
         }
+    }
+
+    pub fn empty(url: &str) -> Self {
+        Self {
+            leagues: vec![],
+            url: url.to_string(),
+            last_updated: std::time::Instant::now()
+                .checked_sub(CACHE_DURATION)
+                .unwrap()
+                .checked_sub(CACHE_DURATION)
+                .unwrap(),
+        }
+    }
+
+    /// Updates if last update is older than CACHE_DURATION
+    pub async fn update(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.needs_update() {
+            println!("Fetching from {}", self.url);
+            let page = fetch_page(&self.url).await?;
+            let leagues = League::from(&page);
+            if self.leagues.len() <= leagues.len() {
+                println!("Updating");
+                println!("{:#?}", leagues);
+                self.leagues = leagues;
+                self.last_updated = std::time::Instant::now();
+            }
+        }
+        Ok(())
+    }
+
+    /// True if last update is older than CACHE_DURATION
+    fn needs_update(&self) -> bool {
+        let now = std::time::Instant::now();
+        let passed_time = now.duration_since(self.last_updated);
+        passed_time > CACHE_DURATION
+    }
+
+    pub fn get(&self, idx: usize) -> Option<&League> {
+        self.leagues.get(idx)
     }
 }
