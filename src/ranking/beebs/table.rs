@@ -45,7 +45,11 @@ impl League {
     /// Parses all leagues and groups present in the given content. Empty vec in case of failure.
     pub fn from(content: &str) -> Vec<Self> {
         if let Some(json_blob) = Self::find_json_blob(content) {
-            match serde_json::from_str(json_blob) {
+            // Bit hacky, but was having trouble parsing the ParseTd variants correctly. Making
+            // ParseTdForm an Option<Vec<_>> resulted in some text stuff not parsing correctly any
+            // more. This seemed like the easier way out, though probably not super future proof D:
+            let json_blob = json_blob.replace("\"form\":null", "\"form\":[]");
+            match serde_json::from_str(&json_blob) {
                 Ok::<ParseRanks, _>(parsed) => parsed.to_leagues(),
                 Err(e) => {
                     eprintln!("Failed to parse: {}", e);
@@ -332,5 +336,27 @@ mod tests {
         assert_eq!(leagues.len(), 1);
         let epl = leagues.get(0).unwrap();
         assert_eq!(epl.entries.get(2).unwrap().team, "Liverpool");
+    }
+
+    #[test]
+    fn parse_eredivisie() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let content = include_str!("ned1.html");
+
+        let leagues = League::from(content);
+        assert_eq!(leagues.len(), 1);
+        let epl = leagues.get(0).unwrap();
+        assert_eq!(epl.entries.get(3).unwrap().team, "Sparta Rotterdam");
+    }
+
+    #[test]
+    fn parse_france() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let content = include_str!("france1.html");
+
+        let leagues = League::from(content);
+        assert_eq!(leagues.len(), 1);
+        let epl = leagues.get(0).unwrap();
+        assert_eq!(epl.entries.get(3).unwrap().team, "Angers");
     }
 }
