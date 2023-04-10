@@ -94,15 +94,15 @@ async fn fetch_livescore() -> Result<LiveScore, Box<dyn std::error::Error>> {
     let utc: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let oneday = chrono::Duration::days(1);
     let today = format!(
-        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        "https://prod-public-api.livescore.com/v1/api/app/date/soccer/{}/0.00",
         utc.format("%Y%m%d").to_string()
     );
     let yday = format!(
-        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        "https://prod-public-api.livescore.com/v1/api/app/date/soccer/{}/0.00",
         (utc - oneday).format("%Y%m%d").to_string()
     );
     let tomorrow = format!(
-        "https://prod-public-api.livescore.com/v1/api/react/date/soccer/{}/0.00",
+        "https://prod-public-api.livescore.com/v1/api/app/date/soccer/{}/0.00",
         (utc + oneday).format("%Y%m%d").to_string()
     );
     let urls = vec![today, yday, tomorrow];
