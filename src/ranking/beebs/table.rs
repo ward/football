@@ -1,3 +1,4 @@
+use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -45,26 +46,8 @@ impl League {
     /// Parses all leagues and groups present in the given content. Empty vec in case of failure.
     pub fn from(content: &str) -> Vec<Self> {
         if let Some(json_blob) = Self::find_json_blob(content) {
-            // Bit hacky, but was having trouble parsing the ParseTd variants correctly. Making
-            // ParseTdForm an Option<Vec<_>> resulted in some text stuff not parsing correctly any
-            // more. This seemed like the easier way out, though probably not super future proof D:
-            let json_blob = json_blob.replace("\"form\":null", "\"form\":[]");
             match serde_json::from_str(&json_blob) {
-                Ok::<ParseRanks, _>(parsed) => parsed.to_leagues(),
-                Err(e) => {
-                    eprintln!("Failed to parse: {}", e);
-                    vec![]
-                }
-            }
-        } else if let Some(json_blob) = Self::find_epl_json_blob(content) {
-            // Very rudimentary cleanup
-            let json_blob = json_blob.replace("\\\"", "\"");
-            log::trace!("cleaned epl_json_blob: {}", json_blob);
-            match serde_json::from_str(&json_blob) {
-                Ok::<ParseEplRanks, _>(parsed) => {
-                    log::trace!("Parsed epl json: {:#?}", parsed);
-                    parsed.to_leagues()
-                }
+                Ok::<BeebsInitialData, _>(initial_data) => initial_data.gather_leagues(),
                 Err(e) => {
                     eprintln!("Failed to parse: {}", e);
                     vec![]
@@ -75,22 +58,16 @@ impl League {
         }
     }
 
-    fn find_json_blob(content: &str) -> Option<&str> {
-        let needle_position = content.find("bbc-morph-sport-tables-data")?;
-        let meta_position = content[needle_position..].find("{\"meta\":")? + needle_position;
+    fn find_json_blob(content: &str) -> Option<String> {
+        let data_start = content.find("__INITIAL_DATA__")?;
+        let data_end = content[data_start..].find("</script>")? + data_start;
+        // start: skip past needle and string open
+        // end: -2 because for some reason the json blob is in a string so has "; at the end
+        let result = content[data_start + 18..data_end - 2].replace("\\", "");
+        // let meta_position = content[needle_position..].find("{\"meta\":")? + needle_position;
         // Not -1 because the range already excludes this position
-        let end_position = content[meta_position..].find(");")? + meta_position;
-        Some(&content[meta_position..end_position])
-    }
-
-    /// They got a special table for the EPL which also decides to be completely differently
-    /// implemented...
-    fn find_epl_json_blob(content: &str) -> Option<&str> {
-        let needle_position = content.find("{\\\"participants\\\"")?;
-        log::trace!("needle_position: {}", needle_position);
-        let end_position = content[needle_position..].find("}]}]}]")? + 3 + needle_position;
-        log::trace!("end_position: {}", end_position);
-        Some(&content[needle_position..end_position])
+        // let end_position = content[meta_position..].find(");")? + meta_position;
+        Some(result)
     }
 
     /// Gets all ranked entries
@@ -129,137 +106,108 @@ impl League {
 }
 
 #[derive(Deserialize, Debug)]
-struct ParseRanks {
-    body: ParseSportTables,
+struct BeebsInitialData {
+    data: BeebsInnerData,
+}
+impl BeebsInitialData {
+    fn gather_leagues(&self) -> Vec<League> {
+        let mut result = vec![];
+        for tournament in &self.data.football_table.data.tournaments {
+            for stage in &tournament.stages {
+                for round in &stage.rounds {
+                    let name = if stage.name.eq_ignore_ascii_case("Regular Season") {
+                        tournament.name.clone()
+                    } else if let Some(roundname) = &round.name {
+                        format!("{} {} {}", tournament.name, stage.name, roundname)
+                    } else {
+                        format!("{} {}", tournament.name, stage.name)
+                    };
+                    let mut league = League {
+                        name,
+                        entries: vec![],
+                    };
+                    for participant in &round.participants {
+                        league.entries.push(participant.to_entry());
+                    }
+                    result.push(league);
+                }
+            }
+        }
+        result
+    }
+}
+
+#[derive(Debug)]
+struct BeebsInnerData {
+    football_table: BeebsFootballTable,
+}
+// Need to do some funky stuff here because the football-table property comes with
+// `?bunchofgarbage` as well. Did not see something built-in to handle that so doing it this way
+impl<'de> Deserialize<'de> for BeebsInnerData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct BeebsInnerDataVisitor;
+
+        impl<'de> Visitor<'de> for BeebsInnerDataVisitor {
+            type Value = BeebsInnerData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("`football-table` with optional mumbo jumbo after")
+            }
+
+            fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut football_table = None;
+
+                while let Some((key, value)) = access.next_entry::<String, serde_json::Value>()? {
+                    if key.starts_with("football-table") {
+                        // Parse the value as TableData
+                        football_table =
+                            Some(serde_json::from_value(value).map_err(de::Error::custom)?);
+                    }
+                    // Ignore other fields
+                }
+
+                let football_table = football_table
+                    .ok_or_else(|| de::Error::custom("missing football-table field"))?;
+
+                Ok(BeebsInnerData { football_table })
+            }
+        }
+
+        deserializer.deserialize_map(BeebsInnerDataVisitor)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct BeebsFootballTable {
+    data: BeebsFootballTableData,
 }
 #[derive(Deserialize, Debug)]
-struct ParseSportTables {
-    #[serde(rename = "sportTables")]
-    sport_tables: ParseSportTable,
+struct BeebsFootballTableData {
+    tournaments: Vec<BeebsTournament>,
 }
 #[derive(Deserialize, Debug)]
-struct ParseSportTable {
-    title: String,
-    tables: Vec<ParseActualTable>,
+struct BeebsTournament {
+    name: String,
+    stages: Vec<BeebsStages>,
 }
 #[derive(Deserialize, Debug)]
-struct ParseActualTable {
-    group: ParseGroupMeta,
-    rows: Vec<ParseRow>,
+struct BeebsStages {
+    name: String,
+    rounds: Vec<BeebsRounds>,
 }
 #[derive(Deserialize, Debug)]
-struct ParseGroupMeta {
+struct BeebsRounds {
     name: Option<String>,
+    participants: Vec<BeebsParticipant>,
 }
 #[derive(Deserialize, Debug)]
-struct ParseRow {
-    cells: Vec<ParseCell>,
-}
-#[derive(Deserialize, Debug)]
-struct ParseCell {
-    td: ParseTd,
-}
-#[derive(Deserialize, Debug)]
-#[serde(untagged)]
-enum ParseTd {
-    ParseTdString {
-        text: String,
-    },
-    ParseTdNumber {
-        text: i8,
-    },
-    ParseTdForm {
-        form: Vec<ParseForm>,
-    },
-    ParseTdLink {
-        #[serde(rename = "abbrLink")]
-        abbr_link: ParseLink,
-    },
-}
-#[derive(Deserialize, Debug)]
-struct ParseForm {
-    result: String,
-}
-#[derive(Deserialize, Debug)]
-struct ParseLink {
-    text: String,
-}
-
-impl ParseRanks {
-    fn to_leagues(&self) -> Vec<League> {
-        let competition_name = if self.body.sport_tables.title.ends_with(" Tables") {
-            // TODO Cut off the last part or use a replace or somesuch. Maybe go to chars and back?
-            self.body.sport_tables.title.to_string()
-        } else {
-            self.body.sport_tables.title.to_string()
-        };
-        let mut leagues = vec![];
-        for league in &self.body.sport_tables.tables {
-            let name = if let Some(group_name) = &league.group.name {
-                format!("{} {}", competition_name, group_name)
-            } else {
-                competition_name.to_string()
-            };
-            let entries: Vec<Entry> = league.rows.iter().map(|row| row.to_entry()).collect();
-            leagues.push(League { name, entries })
-        }
-        leagues
-    }
-}
-
-impl ParseRow {
-    fn to_entry(&self) -> Entry {
-        let rank = self.cells.get(0).unwrap().td.to_inner_number();
-        // position 1 is whether team moved up or down
-        let team = self.cells.get(2).unwrap().td.to_inner_string();
-        // position 3 is played
-        let win = self.cells.get(4).unwrap().td.to_inner_number();
-        let draw = self.cells.get(5).unwrap().td.to_inner_number();
-        let lose = self.cells.get(6).unwrap().td.to_inner_number();
-        let gf = self.cells.get(7).unwrap().td.to_inner_number();
-        let ga = self.cells.get(8).unwrap().td.to_inner_number();
-        // gd is position 9
-        let points = self.cells.get(10).unwrap().td.to_inner_number();
-
-        Entry {
-            rank,
-            team,
-            win,
-            draw,
-            lose,
-            gf,
-            ga,
-            points,
-        }
-    }
-}
-impl ParseTd {
-    fn to_inner_string(&self) -> String {
-        match self {
-            ParseTd::ParseTdString { text } => text.to_string(),
-            ParseTd::ParseTdForm { form } => form
-                .iter()
-                .map(|pf| pf.result.to_string())
-                .collect::<Vec<_>>()
-                .join(""),
-            ParseTd::ParseTdNumber { text } => text.to_string(),
-            ParseTd::ParseTdLink { abbr_link } => abbr_link.text.to_string(),
-        }
-    }
-    fn to_inner_number(&self) -> i8 {
-        match self {
-            ParseTd::ParseTdNumber { text } => *text,
-            _ => panic!("Fix me"),
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
-struct ParseEplRanks {
-    participants: Vec<ParseEplParticipant>,
-}
-#[derive(Deserialize, Debug)]
-struct ParseEplParticipant {
+struct BeebsParticipant {
     rank: i8,
     name: String,
     points: i8,
@@ -271,24 +219,11 @@ struct ParseEplParticipant {
     #[serde(rename = "goalsScoredAgainst")]
     ga: i8,
 }
-impl ParseEplRanks {
-    fn to_leagues(self) -> Vec<League> {
-        let entries = self
-            .participants
-            .into_iter()
-            .map(|part| part.to_entry())
-            .collect();
-        vec![League {
-            name: "English Premier League".to_string(),
-            entries,
-        }]
-    }
-}
-impl ParseEplParticipant {
-    fn to_entry(self) -> Entry {
+impl BeebsParticipant {
+    fn to_entry(&self) -> Entry {
         Entry {
             rank: self.rank,
-            team: self.name,
+            team: self.name.clone(),
             win: self.wins,
             draw: self.draws,
             lose: self.losses,
@@ -304,7 +239,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_table() {
+    fn parse_belgium_table() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let content = include_str!("belgium.1a.html");
@@ -314,17 +249,31 @@ mod tests {
     }
 
     #[test]
-    fn parse_groups() {
+    fn parse_cl() {
         let _ = env_logger::builder().is_test(true).try_init();
         let content = include_str!("cl.html");
 
         let leagues = League::from(content);
-        assert_eq!(leagues.len(), 8);
+        assert_eq!(leagues.len(), 1);
+
+        let combinedtable = leagues.get(0).unwrap();
+        assert_eq!(combinedtable.name, "UEFA Champions League League Stage");
+
+        assert_eq!(combinedtable.entries.get(0).unwrap().team, "Aston Villa");
+    }
+
+    #[test]
+    fn parse_nations_league() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let content = include_str!("nations_league.html");
+
+        let leagues = League::from(content);
+        assert_eq!(leagues.len(), 14);
 
         let group_f = leagues.get(5).unwrap();
-        assert_eq!(group_f.name, "Champions League Tables Group F");
+        assert_eq!(group_f.name, "UEFA Nations League League C Group 2");
 
-        assert_eq!(group_f.entries.get(0).unwrap().team, "Manchester United");
+        assert_eq!(group_f.entries.get(0).unwrap().team, "Romania");
     }
 
     #[test]
@@ -335,28 +284,6 @@ mod tests {
         let leagues = League::from(content);
         assert_eq!(leagues.len(), 1);
         let epl = leagues.get(0).unwrap();
-        assert_eq!(epl.entries.get(2).unwrap().team, "Liverpool");
-    }
-
-    #[test]
-    fn parse_eredivisie() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let content = include_str!("ned1.html");
-
-        let leagues = League::from(content);
-        assert_eq!(leagues.len(), 1);
-        let epl = leagues.get(0).unwrap();
-        assert_eq!(epl.entries.get(3).unwrap().team, "Sparta Rotterdam");
-    }
-
-    #[test]
-    fn parse_france() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let content = include_str!("france1.html");
-
-        let leagues = League::from(content);
-        assert_eq!(leagues.len(), 1);
-        let epl = leagues.get(0).unwrap();
-        assert_eq!(epl.entries.get(3).unwrap().team, "Angers");
+        assert_eq!(epl.entries.get(2).unwrap().team, "Arsenal");
     }
 }
